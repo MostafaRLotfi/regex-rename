@@ -6,9 +6,42 @@ Run with:
 
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 
+import pandas as pd
 from shiny import App, reactive, render, ui
+
+# `pwd` is Unix-only; on Windows we fall back to the numeric uid for the Owner
+# column. Guarded here so the app still imports/runs on the user's Windows box.
+try:
+    import pwd
+except ImportError:  # pragma: no cover - Windows
+    pwd = None
+
+# Optional metadata columns the user can toggle on. Order here is the display
+# order in the grid; keys match the row-dict fields built in plan().
+EXTRA_COLUMNS = {
+    "date_modified": "Date modified",
+    "date_created": "Date created",
+    "size": "File size",
+    "extension": "Extension",
+    "full_path": "Full path",
+    "depth": "Depth",
+    "name_length": "Name length",
+    "owner": "Owner",
+}
+# Friendly header shown in the grid for each extra column.
+EXTRA_HEADERS = {
+    "date_modified": "date modified",
+    "date_created": "date created",
+    "size": "size",
+    "extension": "extension",
+    "full_path": "full path",
+    "depth": "depth",
+    "name_length": "name length",
+    "owner": "owner",
+}
 
 # ---------------------------------------------------------------------------
 # UI
@@ -18,8 +51,8 @@ app_ui = ui.page_sidebar(
         ui.input_text(
             "directory",
             "Directory",
-            value=str(Path.home()),
-            placeholder=r"C:\Users\you\folder",
+            value="",
+            placeholder="Paste a folder path, then click Scan",
             width="100%",
         ),
         ui.input_action_button("scan", "Scan directory", class_="btn-secondary"),
@@ -41,6 +74,23 @@ app_ui = ui.page_sidebar(
             value=True,
         ),
         ui.hr(),
+        ui.popover(
+            ui.input_action_button(
+                "extra_cols_btn",
+                "Extra columns ▾",
+                class_="btn-outline-secondary",
+                width="100%",
+            ),
+            ui.input_checkbox_group(
+                "extra_cols",
+                None,
+                choices=EXTRA_COLUMNS,
+                selected=[],  # all off by default
+            ),
+            title="Show extra columns",
+            placement="right",
+        ),
+        ui.hr(),
         ui.input_action_button("apply", "Confirm & apply changes", class_="btn-danger"),
         width=340,
     ),
@@ -51,9 +101,37 @@ app_ui = ui.page_sidebar(
         placeholder="Search names…",
         width="100%",
     ),
-    ui.output_ui("preview"),
+    ui.output_data_frame("preview"),
     title="Regex Rename",
 )
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def human_size(n: int) -> str:
+    """Human-readable byte count, e.g. 47 KB."""
+    size = float(n)
+    for unit in ("B", "KB", "MB", "GB", "TB", "PB"):
+        if size < 1024 or unit == "PB":
+            return f"{int(size)} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} PB"
+
+
+def fmt_time(ts: float) -> str:
+    """Format a POSIX timestamp as a compact local datetime."""
+    try:
+        return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
+    except (OverflowError, OSError, ValueError):
+        return "—"
+
+
+# Whole-row background/text colors by outcome. "will rename" rows go green,
+# any problem/error status goes red; "unchanged" rows are left unstyled so the
+# colored rows stand out.
+ROW_WILL_RENAME = {"background-color": "#d1e7dd", "color": "#0f5132"}  # green
+ROW_PROBLEM = {"background-color": "#f8d7da", "color": "#842029"}  # red
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +140,12 @@ app_ui = ui.page_sidebar(
 def server(input, output, session):
     # Trigger to force a rescan after applying changes.
     apply_done = reactive.value(0)
+
+    @reactive.calc
+    def scan_base() -> Path:
+        """The scanned base directory (read via isolate so typing doesn't rescan)."""
+        with reactive.isolate():
+            return Path(input.directory().strip().strip('"'))
 
     @reactive.calc
     def entries():
@@ -80,8 +164,7 @@ def server(input, output, session):
         if scanned == 0:
             return "unscanned"
 
-        with reactive.isolate():
-            base = Path(input.directory().strip().strip('"'))
+        base = scan_base()
         if not base.is_dir():
             return None  # signal "invalid directory"
 
@@ -134,52 +217,103 @@ def server(input, output, session):
         """
         return os.path.normcase(os.path.abspath(str(path)))
 
+    def metadata(p: Path, is_dir: bool, base: Path) -> dict:
+        """Gather the optional metadata columns for one path.
+
+        A single stat() per item, guarded so a broken entry can't blank the
+        grid (mirrors the per-entry guards in entries()).
+        """
+        try:
+            st = p.stat()
+        except OSError:
+            st = None
+
+        if st is None:
+            size = "—"
+            date_modified = date_created = "—"
+            owner = "—"
+        else:
+            size = "—" if is_dir else human_size(st.st_size)
+            date_modified = fmt_time(st.st_mtime)
+            # macOS exposes true creation time as st_birthtime; Windows uses
+            # st_ctime for creation. Linux usually has neither, so fall back.
+            date_created = fmt_time(getattr(st, "st_birthtime", st.st_ctime))
+            if pwd is not None:
+                try:
+                    owner = pwd.getpwuid(st.st_uid).pw_name
+                except (KeyError, OSError):
+                    owner = str(st.st_uid)
+            else:  # Windows
+                owner = str(getattr(st, "st_uid", "—"))
+
+        try:
+            depth = len(p.relative_to(base).parts) - 1
+        except ValueError:
+            depth = 0
+
+        return {
+            "date_modified": date_modified,
+            "date_created": date_created,
+            "size": size,
+            "extension": p.suffix,
+            "full_path": os.path.abspath(str(p)),
+            "depth": depth,
+            "name_length": len(p.name),
+            "owner": owner,
+        }
+
     @reactive.calc
     def plan():
-        """Build the rename plan: list of dicts with old/new/status."""
+        """Build the row list: metadata always, plus rename status when a
+        pattern is present. Returns None when the directory isn't a valid,
+        scanned listing; otherwise a list of row dicts.
+        """
         items = entries()
         if not isinstance(items, list):
             return None
-        if not input.pattern():
-            return []
 
-        rows = []
-        # Track target paths to detect collisions among the renames themselves.
-        new_paths: dict[str, int] = {}
+        base = scan_base()
+        has_pattern = bool(input.pattern())
 
-        # First pass: compute proposed names.
+        # First pass: is_dir + metadata + (proposed name when a pattern is set).
         computed = []
         for p in items:
             try:
                 is_dir = p.is_dir()
             except OSError:
                 is_dir = False
+            meta = metadata(p, is_dir, base)
+            if not has_pattern:
+                computed.append((p, is_dir, meta, None, None))
+                continue
             try:
                 new_name = compute_new_name(p.name, is_dir)
             except re.error as e:
-                computed.append((p, is_dir, None, f"regex error: {e}"))
+                computed.append((p, is_dir, meta, None, f"regex error: {e}"))
                 continue
-            computed.append((p, is_dir, new_name, None))
+            computed.append((p, is_dir, meta, new_name, None))
 
-        for p, is_dir, new_name, err in computed:
-            if new_name is not None:
-                np = norm(p.parent / new_name)
-                new_paths[np] = new_paths.get(np, 0) + 1
+        # Track target paths to detect collisions among the renames themselves.
+        new_paths: dict[str, int] = {}
+        if has_pattern:
+            for p, is_dir, meta, new_name, err in computed:
+                if new_name is not None:
+                    np = norm(p.parent / new_name)
+                    new_paths[np] = new_paths.get(np, 0) + 1
 
-        for p, is_dir, new_name, err in computed:
+        rows = []
+        for p, is_dir, meta, new_name, err in computed:
             kind = "folder" if is_dir else "file"
-            if err is not None:
-                status = err
-                changed = False
+            if not has_pattern:
+                status, changed = "", False
+            elif err is not None:
+                status, changed = err, False
             elif new_name == p.name:
-                status = "unchanged"
-                changed = False
+                status, changed = "unchanged", False
             elif new_name.strip() == "" or new_name in (".", ".."):
-                status = "invalid name"
-                changed = False
+                status, changed = "invalid name", False
             elif any(sep in new_name for sep in ("/", "\\")):
-                status = "invalid: contains path separator"
-                changed = False
+                status, changed = "invalid: contains path separator", False
             else:
                 target_path = p.parent / new_name
                 np = norm(target_path)
@@ -188,26 +322,22 @@ def server(input, output, session):
                 except OSError:
                     exists = False
                 if new_paths.get(np, 0) > 1:
-                    status = "collision (duplicate target)"
-                    changed = False
+                    status, changed = "collision (duplicate target)", False
                 elif exists and np != norm(p):
-                    status = "conflict (target exists)"
-                    changed = False
+                    status, changed = "conflict (target exists)", False
                 else:
-                    status = "will rename"
-                    changed = True
+                    status, changed = "will rename", True
 
-            rows.append(
-                {
-                    "type": kind,
-                    "folder": str(p.parent),
-                    "old name": p.name,
-                    "new name": new_name if new_name is not None else "",
-                    "status": status,
-                    "_path": str(p),
-                    "_changed": changed,
-                }
-            )
+            row = {
+                "type": "📁" if is_dir else "📄",
+                "old name": p.name,
+                "new name": new_name if new_name is not None else "",
+                "status": status,
+                "_path": str(p),
+                "_changed": changed,
+            }
+            row.update(meta)
+            rows.append(row)
         return rows
 
     @render.ui
@@ -219,12 +349,13 @@ def server(input, output, session):
                 class_="text-muted",
             )
         if items is None:
+            shown = input.directory().strip().strip('"')
             return ui.div(
                 ui.tags.b("Invalid directory: "),
-                ui.tags.code(input.directory().strip().strip('"')),
+                ui.tags.code(shown) if shown else ui.tags.i("(empty)"),
                 class_="alert alert-warning",
             )
-        rows = plan()
+        rows = plan() or []
         if not input.pattern():
             return ui.p(
                 f"{len(items)} item(s) found. Enter a regex pattern to preview renames.",
@@ -240,87 +371,74 @@ def server(input, output, session):
             msg += f" · {n_problem} problem(s) — those are skipped"
         return ui.div(ui.tags.b(msg), class_=cls)
 
-    @render.ui
+    @render.data_frame
     def preview():
-        # Plain HTML table (no pandas/numpy) to avoid the ABI mismatch and
-        # keep full control over the two-column layout and row coloring.
-        items = entries()
-        if not isinstance(items, list):
-            return ui.div()
-        if not items:
-            return ui.p("No matching items in this directory.", class_="text-muted")
+        rows = plan()
+        has_pattern = bool(input.pattern())
 
-        rows = plan()  # None/[] when no pattern; else list of dicts
-        has_plan = bool(rows)
+        # Column order: type icon, names, status, then the checked extras.
+        base_cols = ["type", "old name", "after regex", "status"]
+        extra = [k for k in EXTRA_COLUMNS if k in (input.extra_cols() or ())]
+        display_cols = base_cols + [EXTRA_HEADERS[k] for k in extra]
 
-        # Case-insensitive substring filter from the search box (matches either
-        # the current name or the proposed new name).
+        if not isinstance(rows, list) or not rows:
+            # Nothing scanned yet, invalid dir, or no items — empty grid with the
+            # column headers so the layout stays stable.
+            return render.DataGrid(pd.DataFrame({c: [] for c in display_cols}))
+
+        # Global search: substring match against current or proposed name.
         term = input.search().strip().lower()
+        if term:
+            rows = [
+                r
+                for r in rows
+                if term in r["old name"].lower() or term in r["new name"].lower()
+            ]
 
-        def matches(current: str, after: str) -> bool:
-            if not term:
-                return True
-            return term in current.lower() or term in after.lower()
+        # Default sort: colored rows float to the top — green (will rename)
+        # first, then red (problem/error) — with plain "unchanged" rows below,
+        # each group sorted by name. (Clicking any header re-sorts natively.)
+        def _rank(r: dict) -> int:
+            if r["_changed"]:  # green
+                return 0
+            if r["status"] not in ("", "unchanged"):  # red (problem/error)
+                return 1
+            return 2  # unchanged / no pattern yet
 
-        # Colors for the "after regex" cell based on status.
-        good = {"will rename"}
-        neutral = {"unchanged"}
+        rows = sorted(rows, key=lambda r: (_rank(r), r["old name"].lower()))
 
-        body = []
-        total = 0
-        if has_plan:
-            for r in rows:
-                total += 1
-                after = r["new name"] or ""
-                if not matches(r["old name"], after):
+        if not rows:
+            return render.DataGrid(pd.DataFrame({c: [] for c in display_cols}))
+
+        records = []
+        for r in rows:
+            rec = {
+                "type": r["type"],
+                "old name": r["old name"],
+                "after regex": r["new name"],
+                "status": r["status"],
+            }
+            for k in extra:
+                rec[EXTRA_HEADERS[k]] = r[k]
+            records.append(rec)
+        df = pd.DataFrame(records, columns=display_cols)
+
+        # Whole-row coloring by status: green when it will rename, red on any
+        # problem/error. Omitting "cols" applies the style across all columns.
+        styles = []
+        if has_pattern:
+            for i, r in enumerate(rows):
+                st = r["status"]
+                if st in ("", "unchanged"):
                     continue
-                status = r["status"]
-                if status in good:
-                    color, weight = "#198754", "600"  # green
-                elif status in neutral:
-                    color, weight = "#6c757d", "400"  # grey
-                else:
-                    color, weight = "#dc3545", "600"  # red (problem)
-                title = status if status not in neutral else ""
-                body.append(
-                    ui.tags.tr(
-                        ui.tags.td(r["old name"]),
-                        ui.tags.td(
-                            after,
-                            title=title,
-                            style=f"color:{color};font-weight:{weight};",
-                        ),
-                    )
-                )
-        else:
-            for p in items:
-                total += 1
-                if not matches(p.name, ""):
-                    continue
-                body.append(
-                    ui.tags.tr(ui.tags.td(p.name), ui.tags.td(""))
-                )
+                row_style = ROW_WILL_RENAME if st == "will rename" else ROW_PROBLEM
+                styles.append({"rows": [i], "style": dict(row_style)})
 
-        if not body:
-            return ui.p(
-                f"No names match “{input.search().strip()}”.", class_="text-muted"
-            )
-
-        header = ui.tags.thead(
-            ui.tags.tr(
-                ui.tags.th("current name", style="text-align:left;"),
-                ui.tags.th("after regex", style="text-align:left;"),
-            )
-        )
-        table = ui.tags.table(
-            header,
-            ui.tags.tbody(*body),
-            class_="table table-sm table-striped",
-            style="width:100%;",
-        )
-        return ui.div(
-            table,
-            style="max-height:70vh;overflow:auto;border:1px solid #dee2e6;border-radius:.375rem;",
+        return render.DataGrid(
+            df,
+            width="100%",
+            height="70vh",
+            styles=styles,
         )
 
     @reactive.effect

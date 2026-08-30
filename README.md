@@ -11,9 +11,16 @@ checks before anything is written to disk.
   like `\1` work) to filenames.
 - Target **files**, **folders**, or **both**, optionally recursing into
   subdirectories.
-- **Live two-column preview** (`current name` → `after regex`) that updates as
-  you type — nothing touches disk until you confirm.
-- **Search bar** to filter the preview by current or proposed name.
+- **Live interactive preview grid** (`current name` → `after regex` + `status`)
+  that updates as you type — nothing touches disk until you confirm. Each row
+  carries a 📁/📄 type icon, and rows that will change float to the top.
+- **Click any column header to sort** (ascending/descending).
+- **Extra columns** you can toggle on via checkboxes (multiple at once): date
+  modified, date created, file size, extension, full path, depth, name length,
+  and owner — so you can sort/scan by whatever attribute matters.
+- **Search bar** to filter the grid by current or proposed name.
+- Colored **status** per row (green = will rename, grey = unchanged, red =
+  problem) so you can see at a glance what will happen.
 - Optional **case-insensitive** matching and **name-only** matching that keeps
   file extensions intact.
 - Safety checks: collision detection, target-exists conflicts, invalid-name
@@ -24,7 +31,8 @@ checks before anything is written to disk.
 ## Requirements
 
 - Python 3.9+
-- [`shiny`](https://pypi.org/project/shiny/) (see `requirements.txt`)
+- [`shiny`](https://pypi.org/project/shiny/) and
+  [`pandas`](https://pypi.org/project/pandas/) (see `requirements.txt`)
 
 ### Setup
 
