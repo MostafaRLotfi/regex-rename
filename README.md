@@ -24,10 +24,26 @@ checks before anything is written to disk.
 ## Requirements
 
 - Python 3.9+
-- [`shiny`](https://pypi.org/project/shiny/)
+- [`shiny`](https://pypi.org/project/shiny/) (see `requirements.txt`)
+
+### Setup
+
+Create an isolated virtual environment and install the pinned dependencies.
+
+**macOS / Linux**
 
 ```bash
-pip install shiny
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Windows (PowerShell)**
+
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
 ## Running
@@ -37,6 +53,18 @@ shiny run --reload app.py
 ```
 
 Then open the URL it prints (default http://127.0.0.1:8000).
+
+## Try it out
+
+A ready-made [`test_directory/`](test_directory/) with deliberately messy
+filenames is included so you can experiment safely. Point the app's
+**Directory** field at its full path and follow the scenarios in
+[`test_directory/README.md`](test_directory/README.md). To reset it after
+renaming:
+
+```bash
+git checkout -- test_directory && git clean -fd test_directory
+```
 
 > ⚠️ This renames real files. Test on a throwaway folder first, and note that
 > the **Confirm & apply** button applies the full plan, not just the rows shown
