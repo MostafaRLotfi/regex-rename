@@ -294,10 +294,13 @@ def server(input, output, session):
             computed.append((p, is_dir, meta, new_name, None))
 
         # Track target paths to detect collisions among the renames themselves.
+        # Only rows that actually move (new_name differs from the current name)
+        # count: an unchanged file "targeting" its own name isn't a competing
+        # rename, so renaming onto it is reported as a conflict, not a collision.
         new_paths: dict[str, int] = {}
         if has_pattern:
             for p, is_dir, meta, new_name, err in computed:
-                if new_name is not None:
+                if new_name is not None and new_name != p.name:
                     np = norm(p.parent / new_name)
                     new_paths[np] = new_paths.get(np, 0) + 1
 
