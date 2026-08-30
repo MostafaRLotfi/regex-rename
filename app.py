@@ -74,11 +74,21 @@ app_ui = ui.page_sidebar(
             value=True,
         ),
         ui.hr(),
-        ui.input_checkbox_group(
-            "extra_cols",
-            "Extra columns",
-            choices=EXTRA_COLUMNS,
-            selected=["date_modified", "size"],
+        ui.popover(
+            ui.input_action_button(
+                "extra_cols_btn",
+                "Extra columns ▾",
+                class_="btn-outline-secondary",
+                width="100%",
+            ),
+            ui.input_checkbox_group(
+                "extra_cols",
+                None,
+                choices=EXTRA_COLUMNS,
+                selected=[],  # all off by default
+            ),
+            title="Show extra columns",
+            placement="right",
         ),
         ui.hr(),
         ui.input_action_button("apply", "Confirm & apply changes", class_="btn-danger"),
