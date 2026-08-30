@@ -395,9 +395,17 @@ def server(input, output, session):
                 if term in r["old name"].lower() or term in r["new name"].lower()
             ]
 
-        # Default sort: rows that will change float to the top, then by name.
-        # (Clicking any column header re-sorts natively.)
-        rows = sorted(rows, key=lambda r: (not r["_changed"], r["old name"].lower()))
+        # Default sort: colored rows float to the top — green (will rename)
+        # first, then red (problem/error) — with plain "unchanged" rows below,
+        # each group sorted by name. (Clicking any header re-sorts natively.)
+        def _rank(r: dict) -> int:
+            if r["_changed"]:  # green
+                return 0
+            if r["status"] not in ("", "unchanged"):  # red (problem/error)
+                return 1
+            return 2  # unchanged / no pattern yet
+
+        rows = sorted(rows, key=lambda r: (_rank(r), r["old name"].lower()))
 
         if not rows:
             return render.DataGrid(pd.DataFrame({c: [] for c in display_cols}))
