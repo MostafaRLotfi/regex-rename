@@ -117,12 +117,11 @@ def fmt_time(ts: float) -> str:
         return "—"
 
 
-# Status → (color, font-weight) for the grid's "after regex"/"status" cells.
-STATUS_STYLE = {
-    "will rename": ("#198754", "600"),  # green
-    "unchanged": ("#6c757d", "400"),  # grey
-}
-PROBLEM_STYLE = ("#dc3545", "600")  # red — any other (non-blank) status
+# Whole-row background/text colors by outcome. "will rename" rows go green,
+# any problem/error status goes red; "unchanged" rows are left unstyled so the
+# colored rows stand out.
+ROW_WILL_RENAME = {"background-color": "#d1e7dd", "color": "#0f5132"}  # green
+ROW_PROBLEM = {"background-color": "#f8d7da", "color": "#842029"}  # red
 
 
 # ---------------------------------------------------------------------------
@@ -406,21 +405,16 @@ def server(input, output, session):
             records.append(rec)
         df = pd.DataFrame(records, columns=display_cols)
 
-        # Per-row coloring of the proposed-name/status cells by status.
+        # Whole-row coloring by status: green when it will rename, red on any
+        # problem/error. Omitting "cols" applies the style across all columns.
         styles = []
         if has_pattern:
             for i, r in enumerate(rows):
                 st = r["status"]
-                if st == "":
+                if st in ("", "unchanged"):
                     continue
-                color, weight = STATUS_STYLE.get(st, PROBLEM_STYLE)
-                styles.append(
-                    {
-                        "rows": [i],
-                        "cols": ["after regex", "status"],
-                        "style": {"color": color, "font-weight": weight},
-                    }
-                )
+                row_style = ROW_WILL_RENAME if st == "will rename" else ROW_PROBLEM
+                styles.append({"rows": [i], "style": dict(row_style)})
 
         return render.DataGrid(
             df,
