@@ -140,51 +140,52 @@ ROW_PROBLEM = {"background-color": "#f8d7da", "color": "#842029"}  # red
 
 
 # Quick-reference regex content shown in the cheat-sheet modal. Each section is
-# (heading, [(token, meaning), ...]); tokens render in a <code> cell.
+# (heading, [(token, meaning, example), ...]); token and example render in
+# <code> cells.
 CHEATSHEET = [
     (
         "Character classes",
         [
-            (".", "any character except newline"),
-            (r"\d", "a digit (0–9)"),
-            (r"\D", "a non-digit"),
-            (r"\w", "a word char (letter, digit, _)"),
-            (r"\W", "a non-word char"),
-            (r"\s", "whitespace (space, tab, …)"),
-            (r"\S", "non-whitespace"),
+            (".", "any character except newline", 'a.c → "abc"'),
+            (r"\d", "a digit (0–9)", r'\d\d → "42"'),
+            (r"\D", "a non-digit", r'\D → "x" in "x9"'),
+            (r"\w", "a word char (letter, digit, _)", r'\w+ → "file_1"'),
+            (r"\W", "a non-word char", r'\W → "-" in "a-b"'),
+            (r"\s", "whitespace (space, tab, …)", r'a\sb → "a b"'),
+            (r"\S", "non-whitespace", r'\S+ → "hello"'),
         ],
     ),
     (
         "Sets & groups",
         [
-            ("[abc]", "any one of a, b, or c"),
-            ("[^abc]", "any char except a, b, c"),
-            ("[a-z]", "any char in the range a–z"),
-            ("(...)", r"capturing group → use as \1 in Replacement"),
-            ("(?:...)", "group without capturing"),
-            ("a|b", "match a or b"),
+            ("[abc]", "any one of a, b, or c", '[aeiou] → "e"'),
+            ("[^abc]", "any char except a, b, c", '[^0-9] → "x"'),
+            ("[a-z]", "any char in the range a–z", '[a-f] → "c"'),
+            ("(...)", r"capturing group → use as \1 in Replacement", r'(\d+) captures "0001"'),
+            ("(?:...)", "group without capturing", '(?:ab)+ → "abab"'),
+            ("a|b", "match a or b", 'jpg|png → "png"'),
         ],
     ),
     (
         "Anchors & quantifiers",
         [
-            ("^", "start of the name"),
-            ("$", "end of the name"),
-            (r"\b", "word boundary"),
-            ("*", "0 or more of the previous"),
-            ("+", "1 or more of the previous"),
-            ("?", "0 or 1 (makes it optional)"),
-            ("{n}", "exactly n"),
-            ("{n,m}", "between n and m"),
-            ("+? / *?", "lazy: as few as possible"),
+            ("^", "start of the name", '^IMG → "IMG…"'),
+            ("$", "end of the name", r'\.txt$ → "….txt"'),
+            (r"\b", "word boundary", r'\bfile\b → whole word "file"'),
+            ("*", "0 or more of the previous", 'ab* → "a", "abbb"'),
+            ("+", "1 or more of the previous", r'\d+ → "12"'),
+            ("?", "0 or 1 (makes it optional)", 'colou?r → "color"/"colour"'),
+            ("{n}", "exactly n", r'\d{4} → "2024"'),
+            ("{n,m}", "between n and m", r'\d{2,4} → "12"–"1234"'),
+            ("+? / *?", "lazy: as few as possible", ".+? → shortest match"),
         ],
     ),
     (
         "Escaping & replacement",
         [
-            (r"\.", r"a literal dot (escape . ^ $ * + ? ( ) [ ] { } | \ )"),
-            (r"\1 \2", "insert captured group 1, 2 in Replacement"),
-            (r"\g<1>", r"same as \1 (use before a literal digit)"),
+            (r"\.", r"a literal dot (escape . ^ $ * + ? ( ) [ ] { } | \ )", r'\.jpg → ".jpg"'),
+            (r"\1 \2", "insert captured group 1, 2 in Replacement", r"(\w+)-(\d+) → \2_\1"),
+            (r"\g<1>", r"same as \1 (use before a literal digit)", r"…\g<1>0 → group, then 0"),
         ],
     ),
 ]
@@ -201,16 +202,20 @@ CHEATSHEET_EXAMPLES = [
 def cheatsheet_modal():
     """Build the regex cheat-sheet modal shown by the sidebar button."""
 
-    def section(heading, pairs):
+    def section(heading, entries):
         body = [
             ui.tags.tr(
                 ui.tags.td(
                     ui.tags.code(tok),
-                    style="white-space:nowrap;vertical-align:top;padding-right:.75rem;",
+                    style="white-space:nowrap;vertical-align:top;padding-right:.6rem;",
                 ),
-                ui.tags.td(desc),
+                ui.tags.td(desc, style="vertical-align:top;padding-right:.6rem;"),
+                ui.tags.td(
+                    ui.tags.code(ex, style="color:#6c757d;"),
+                    style="vertical-align:top;",
+                ),
             )
-            for tok, desc in pairs
+            for tok, desc, ex in entries
         ]
         return ui.div(
             ui.tags.b(heading),
@@ -242,7 +247,7 @@ def cheatsheet_modal():
         ),
         ui.div(
             *[section(h, pairs) for h, pairs in CHEATSHEET],
-            style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));"
+            style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));"
             "gap:0 1.5rem;",
         ),
         ui.hr(),
