@@ -67,6 +67,11 @@ app_ui = ui.page_sidebar(
         ui.hr(),
         ui.input_text("pattern", "Regex pattern", value="", placeholder=r"(\d+)", width="100%"),
         ui.input_text("replacement", "Replacement", value="", placeholder=r"num_\1", width="100%"),
+        ui.input_action_button(
+            "cheatsheet",
+            "📖 Regex cheat sheet",
+            class_="btn-link btn-sm p-0",
+        ),
         ui.input_checkbox("ignore_case", "Case-insensitive", value=False),
         ui.input_checkbox(
             "ext_stem_only",
@@ -132,6 +137,133 @@ def fmt_time(ts: float) -> str:
 # colored rows stand out.
 ROW_WILL_RENAME = {"background-color": "#d1e7dd", "color": "#0f5132"}  # green
 ROW_PROBLEM = {"background-color": "#f8d7da", "color": "#842029"}  # red
+
+
+# Quick-reference regex content shown in the cheat-sheet modal. Each section is
+# (heading, [(token, meaning), ...]); tokens render in a <code> cell.
+CHEATSHEET = [
+    (
+        "Character classes",
+        [
+            (".", "any character except newline"),
+            (r"\d", "a digit (0–9)"),
+            (r"\D", "a non-digit"),
+            (r"\w", "a word char (letter, digit, _)"),
+            (r"\W", "a non-word char"),
+            (r"\s", "whitespace (space, tab, …)"),
+            (r"\S", "non-whitespace"),
+        ],
+    ),
+    (
+        "Sets & groups",
+        [
+            ("[abc]", "any one of a, b, or c"),
+            ("[^abc]", "any char except a, b, c"),
+            ("[a-z]", "any char in the range a–z"),
+            ("(...)", r"capturing group → use as \1 in Replacement"),
+            ("(?:...)", "group without capturing"),
+            ("a|b", "match a or b"),
+        ],
+    ),
+    (
+        "Anchors & quantifiers",
+        [
+            ("^", "start of the name"),
+            ("$", "end of the name"),
+            (r"\b", "word boundary"),
+            ("*", "0 or more of the previous"),
+            ("+", "1 or more of the previous"),
+            ("?", "0 or 1 (makes it optional)"),
+            ("{n}", "exactly n"),
+            ("{n,m}", "between n and m"),
+            ("+? / *?", "lazy: as few as possible"),
+        ],
+    ),
+    (
+        "Escaping & replacement",
+        [
+            (r"\.", r"a literal dot (escape . ^ $ * + ? ( ) [ ] { } | \ )"),
+            (r"\1 \2", "insert captured group 1, 2 in Replacement"),
+            (r"\g<1>", r"same as \1 (use before a literal digit)"),
+        ],
+    ),
+]
+
+# A few rename-focused worked examples: (pattern, replacement, before → after).
+CHEATSHEET_EXAMPLES = [
+    (r"IMG_(\d+)", r"photo_\1", "IMG_0001 → photo_0001"),
+    (r"\s+", "_", "my report → my_report"),
+    (r"(\d{4})-(\d{2})-(\d{2})", r"\1_\2_\3", "2023-01-15 → 2023_01_15"),
+    (r"\.txt$", ".md", "notes.txt → notes.md  (turn off name-only)"),
+]
+
+
+def cheatsheet_modal():
+    """Build the regex cheat-sheet modal shown by the sidebar button."""
+
+    def section(heading, pairs):
+        body = [
+            ui.tags.tr(
+                ui.tags.td(
+                    ui.tags.code(tok),
+                    style="white-space:nowrap;vertical-align:top;padding-right:.75rem;",
+                ),
+                ui.tags.td(desc),
+            )
+            for tok, desc in pairs
+        ]
+        return ui.div(
+            ui.tags.b(heading),
+            ui.tags.table(
+                ui.tags.tbody(*body),
+                class_="table table-sm",
+                style="margin-top:.25rem;",
+            ),
+        )
+
+    example_rows = [
+        ui.tags.tr(
+            ui.tags.td(ui.tags.code(pat), style="padding-right:.75rem;"),
+            ui.tags.td(ui.tags.code(rep), style="padding-right:.75rem;"),
+            ui.tags.td(ex, class_="text-muted"),
+        )
+        for pat, rep, ex in CHEATSHEET_EXAMPLES
+    ]
+
+    return ui.modal(
+        ui.p(
+            "This app uses Python's ",
+            ui.tags.code("re.sub"),
+            " — the Pattern is matched and the Replacement is substituted, so "
+            "backreferences like ",
+            ui.tags.code(r"\1"),
+            " work.",
+            class_="text-muted",
+        ),
+        ui.div(
+            *[section(h, pairs) for h, pairs in CHEATSHEET],
+            style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));"
+            "gap:0 1.5rem;",
+        ),
+        ui.hr(),
+        ui.tags.b("Examples"),
+        ui.tags.table(
+            ui.tags.thead(
+                ui.tags.tr(
+                    ui.tags.th("pattern"),
+                    ui.tags.th("replacement"),
+                    ui.tags.th("result"),
+                )
+            ),
+            ui.tags.tbody(*example_rows),
+            class_="table table-sm",
+            style="margin-top:.25rem;",
+        ),
+        title="Regex cheat sheet",
+        easy_close=True,
+        size="l",
+        footer=ui.modal_button("Close"),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -443,6 +575,11 @@ def server(input, output, session):
             height="70vh",
             styles=styles,
         )
+
+    @reactive.effect
+    @reactive.event(input.cheatsheet)
+    def _show_cheatsheet():
+        ui.modal_show(cheatsheet_modal())
 
     @reactive.effect
     @reactive.event(input.apply)

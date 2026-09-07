@@ -19,6 +19,8 @@ checks before anything is written to disk.
   modified, date created, file size, extension, full path, depth, name length,
   and owner — so you can sort/scan by whatever attribute matters.
 - **Search bar** to filter the grid by current or proposed name.
+- A built-in **regex cheat sheet** (button by the pattern field) with common
+  tokens and rename-focused examples.
 - Colored **status** per row (green = will rename, grey = unchanged, red =
   problem) so you can see at a glance what will happen.
 - Optional **case-insensitive** matching and **name-only** matching that keeps
