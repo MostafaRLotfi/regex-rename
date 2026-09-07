@@ -99,6 +99,10 @@ app_ui = ui.page_sidebar(
         ui.input_action_button("apply", "Confirm & apply changes", class_="btn-danger"),
         width=340,
     ),
+    ui.div(
+        ui.input_dark_mode(id="color_mode"),
+        style="display:flex;justify-content:flex-end;margin-bottom:.25rem;",
+    ),
     ui.output_ui("status"),
     ui.input_text(
         "search",

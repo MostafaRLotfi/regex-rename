@@ -4,6 +4,13 @@ A [Shiny for Python](https://shiny.posit.co/py/) app for bulk-renaming files and
 folders in a directory using regular expressions, with a live preview and safety
 checks before anything is written to disk.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/regex-rename-dark.png">
+    <img alt="Regex Rename — live preview grid showing which files will be renamed" src="assets/regex-rename-light.png" width="900">
+  </picture>
+</p>
+
 ## Features
 
 - Point at any directory and **scan** it for its contents.
@@ -21,6 +28,7 @@ checks before anything is written to disk.
 - **Search bar** to filter the grid by current or proposed name.
 - A built-in **regex cheat sheet** (button by the pattern field) with common
   tokens and rename-focused examples.
+- A **light/dark mode toggle** for comfortable viewing.
 - Colored **status** per row (green = will rename, grey = unchanged, red =
   problem) so you can see at a glance what will happen.
 - Optional **case-insensitive** matching and **name-only** matching that keeps
