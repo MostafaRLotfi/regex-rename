@@ -79,3 +79,9 @@ git checkout -- test_directory && git clean -fd test_directory
 > ⚠️ This renames real files. Test on a throwaway folder first, and note that
 > the **Confirm & apply** button applies the full plan, not just the rows shown
 > by the search filter.
+
+## License
+
+Released under the [MIT License](LICENSE). The bundled sample media in
+`test_directory/` is credited in
+[`test_directory/ATTRIBUTIONS.md`](test_directory/ATTRIBUTIONS.md).
