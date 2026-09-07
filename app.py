@@ -44,10 +44,178 @@ EXTRA_HEADERS = {
 }
 
 # ---------------------------------------------------------------------------
+# Skins
+# ---------------------------------------------------------------------------
+# Each skin sets the Bootstrap color mode ("light"/"dark") plus a textured
+# palette. "Classic" skins are the plain Bootstrap themes (no texture). The
+# per-skin "good"/"bad" colors drive the will-rename / problem row highlights.
+# ``tex`` holds CSS background-image layers (gradients / inline-SVG noise).
+SKINS: dict[str, dict] = {
+    # --- Light ---
+    "classic_light": {
+        "label": "Classic Light", "mode": "light", "tex": None,
+        "good_bg": "#d1e7dd", "good_ink": "#0f5132",
+        "bad_bg": "#f8d7da", "bad_ink": "#842029",
+    },
+    "linen": {
+        "label": "Linen", "mode": "light",
+        "bg": "#ece6dc", "ink": "#3d4a44", "panel": "rgba(255,255,255,.4)",
+        "field": "rgba(255,255,255,.6)", "line": "rgba(60,74,68,.22)",
+        "accent": "#4a8f83", "btntext": "#ffffff",
+        "good_bg": "rgba(45,130,90,.20)", "good_ink": "#20624a",
+        "bad_bg": "rgba(190,70,60,.16)", "bad_ink": "#8f2f28",
+        "tex": ("repeating-linear-gradient(0deg,rgba(0,0,0,.035) 0 1px,transparent 1px 4px),"
+                "repeating-linear-gradient(90deg,rgba(0,0,0,.035) 0 1px,transparent 1px 4px)"),
+    },
+    "canvas": {
+        "label": "Natural Canvas", "mode": "light",
+        "bg": "#e7e0d1", "ink": "#40382c", "panel": "rgba(255,255,255,.4)",
+        "field": "rgba(255,253,247,.6)", "line": "rgba(64,56,44,.22)",
+        "accent": "#b5623a", "btntext": "#fff6ee",
+        "good_bg": "rgba(70,120,60,.20)", "good_ink": "#33501f",
+        "bad_bg": "rgba(170,70,50,.18)", "bad_ink": "#7c2f1c",
+        "tex": ("repeating-linear-gradient(0deg,rgba(0,0,0,.04) 0 1px,transparent 1px 4px),"
+                "repeating-linear-gradient(90deg,rgba(0,0,0,.04) 0 1px,transparent 1px 4px)"),
+    },
+    "cyanotype": {
+        "label": "Cyanotype", "mode": "light",
+        "bg": "#dde9ef", "ink": "#143a52", "panel": "rgba(255,255,255,.45)",
+        "field": "rgba(255,255,255,.6)", "line": "rgba(20,90,120,.28)",
+        "accent": "#1c86b0", "btntext": "#ffffff",
+        "good_bg": "rgba(25,120,90,.16)", "good_ink": "#12603f",
+        "bad_bg": "rgba(200,60,60,.14)", "bad_ink": "#8f2f28",
+        "tex": ("repeating-linear-gradient(0deg,rgba(20,120,160,.15) 0 1px,transparent 1px 12px),"
+                "repeating-linear-gradient(90deg,rgba(20,120,160,.15) 0 1px,transparent 1px 12px)"),
+    },
+    # --- Dark ---
+    "classic_dark": {
+        "label": "Classic Dark", "mode": "dark", "tex": None,
+        "good_bg": "#d1e7dd", "good_ink": "#0f5132",
+        "bad_bg": "#f8d7da", "bad_ink": "#842029",
+    },
+    "carbon": {
+        "label": "Slate Carbon", "mode": "dark",
+        "bg": "#22272c", "ink": "#e6edf3", "panel": "rgba(255,255,255,.03)",
+        "field": "rgba(255,255,255,.05)", "line": "rgba(255,255,255,.10)",
+        "accent": "#4dd0e1", "btntext": "#04222a",
+        "good_bg": "rgba(77,208,118,.20)", "good_ink": "#9be8b6",
+        "bad_bg": "rgba(255,107,107,.20)", "bad_ink": "#ffb1b1",
+        "tex": ("repeating-linear-gradient(45deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px),"
+                "repeating-linear-gradient(-45deg,rgba(0,0,0,.25) 0 1px,transparent 1px 3px)"),
+    },
+    "graphite": {
+        "label": "Graphite Mesh", "mode": "dark",
+        "bg": "#26292e", "ink": "#e9ebef", "panel": "rgba(255,255,255,.04)",
+        "field": "rgba(255,255,255,.05)", "line": "rgba(255,255,255,.11)",
+        "accent": "#f2b544", "btntext": "#2a2010",
+        "good_bg": "rgba(120,210,130,.20)", "good_ink": "#a8e6b4",
+        "bad_bg": "rgba(255,120,110,.20)", "bad_ink": "#ffb8b0",
+        "tex": ("radial-gradient(rgba(255,255,255,.08) 1px,transparent 1.6px) 0 0/13px 13px,"
+                "repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 13px)"),
+    },
+    "gunmetal": {
+        "label": "Gunmetal", "mode": "dark",
+        "bg": "#2b2f34", "ink": "#eceff2", "panel": "rgba(255,255,255,.04)",
+        "field": "rgba(255,255,255,.06)", "line": "rgba(255,255,255,.12)",
+        "accent": "#86a5c4", "btntext": "#0e1a26",
+        "good_bg": "rgba(90,200,140,.20)", "good_ink": "#a6e6c2",
+        "bad_bg": "rgba(255,120,120,.20)", "bad_ink": "#ffbdbd",
+        "tex": ("linear-gradient(90deg,rgba(255,255,255,.06),transparent 45%,rgba(255,255,255,.05)),"
+                "repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 1px,rgba(0,0,0,.06) 1px 2px)"),
+    },
+    "blueprint": {
+        "label": "Blueprint", "mode": "dark",
+        "bg": "#0e3a5f", "ink": "#eaf3fb", "panel": "rgba(255,255,255,.05)",
+        "field": "rgba(255,255,255,.08)", "line": "rgba(255,255,255,.20)",
+        "accent": "#7fd0ff", "btntext": "#0e3a5f",
+        "good_bg": "rgba(120,230,160,.18)", "good_ink": "#bff2d2",
+        "bad_bg": "rgba(255,130,130,.20)", "bad_ink": "#ffc2c2",
+        "tex": ("repeating-linear-gradient(0deg,rgba(255,255,255,.10) 0 1px,transparent 1px 13px),"
+                "repeating-linear-gradient(90deg,rgba(255,255,255,.10) 0 1px,transparent 1px 13px)"),
+    },
+    "circuit": {
+        "label": "Circuit Navy", "mode": "dark",
+        "bg": "#10233a", "ink": "#dbeafc", "panel": "rgba(120,200,255,.05)",
+        "field": "rgba(255,255,255,.06)", "line": "rgba(120,200,255,.20)",
+        "accent": "#6cc6ff", "btntext": "#0b1b2e",
+        "good_bg": "rgba(120,230,160,.18)", "good_ink": "#bff2d2",
+        "bad_bg": "rgba(255,130,130,.20)", "bad_ink": "#ffc2c2",
+        "tex": ("repeating-linear-gradient(0deg,rgba(120,200,255,.13) 0 1px,transparent 1px 13px),"
+                "repeating-linear-gradient(90deg,rgba(120,200,255,.13) 0 1px,transparent 1px 13px)"),
+    },
+    "denim": {
+        "label": "Denim", "mode": "dark",
+        "bg": "#3f5a78", "ink": "#eef3f8", "panel": "rgba(255,255,255,.06)",
+        "field": "rgba(255,255,255,.10)", "line": "rgba(255,255,255,.18)",
+        "accent": "#e8d9b5", "btntext": "#33465e",
+        "good_bg": "rgba(130,225,165,.22)", "good_ink": "#d6f3e0",
+        "bad_bg": "rgba(255,145,140,.22)", "bad_ink": "#ffcccc",
+        "tex": ("repeating-linear-gradient(45deg,rgba(255,255,255,.05) 0 1px,transparent 1px 3px),"
+                "repeating-linear-gradient(-45deg,rgba(0,0,0,.14) 0 1px,transparent 1px 3px)"),
+    },
+}
+
+# Grouped choices for the Settings dropdown (optgroups keep light/dark apart).
+SKIN_CHOICES = {
+    "Light": {k: v["label"] for k, v in SKINS.items() if v["mode"] == "light"},
+    "Dark": {k: v["label"] for k, v in SKINS.items() if v["mode"] == "dark"},
+}
+DEFAULT_SKIN = "classic_light"
+
+
+def build_skin_css(skin: dict) -> str:
+    """CSS that paints the app's chrome for a textured skin.
+
+    Classic skins return "" and rely on Bootstrap's own light/dark theme; the
+    data grid and form controls follow ``data-bs-theme`` (set client-side).
+    """
+    if not skin.get("tex"):
+        return ""
+    return f"""
+    body {{ background-color:{skin['bg']}; background-image:{skin['tex']};
+            background-attachment:fixed; color:{skin['ink']}; }}
+    .navbar {{ background-color:{skin['panel']} !important;
+               border-bottom:1px solid {skin['line']}; }}
+    .navbar .navbar-brand, .navbar .nav-link, .navbar .nav-link.active {{
+        color:{skin['ink']} !important; }}
+    .bslib-sidebar-layout>.sidebar {{ background-color:{skin['panel']};
+        border-color:{skin['line']}; }}
+    .bslib-sidebar-layout>.main {{ background-color:transparent; }}
+    .card, .bslib-card, .modal-content, .popover, .popover-body {{
+        background-color:{skin['bg']}; color:{skin['ink']}; }}
+    .form-control, .form-select {{ background-color:{skin['field']};
+        color:{skin['ink']}; border-color:{skin['line']}; }}
+    .btn-secondary {{ background-color:{skin['accent']};
+        border-color:{skin['accent']}; color:{skin['btntext']}; }}
+    .btn-outline-secondary {{ color:{skin['ink']}; border-color:{skin['line']}; }}
+    .nav-tabs .nav-link.active, .nav-underline .nav-link.active {{
+        color:{skin['ink']}; }}
+    """
+
+
+# JS: apply a skin sent from the server (set the Bootstrap color mode and swap
+# a <style> element). Polls until Shiny is ready so registration can't race.
+_SKIN_JS = """
+(function reg(){
+  if(!window.Shiny || !Shiny.addCustomMessageHandler){ return setTimeout(reg,50); }
+  Shiny.addCustomMessageHandler('apply-skin', function(m){
+    document.documentElement.setAttribute('data-bs-theme', m.mode);
+    var el = document.getElementById('app-skin');
+    if(!el){ el = document.createElement('style'); el.id = 'app-skin';
+             document.head.appendChild(el); }
+    el.textContent = m.css;
+  });
+})();
+"""
+
+# ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
-app_ui = ui.page_sidebar(
-    ui.sidebar(
+app_ui = ui.page_navbar(
+    ui.nav_panel(
+        "Rename",
+        ui.layout_sidebar(
+            ui.sidebar(
         ui.input_text(
             "directory",
             "Directory",
@@ -99,19 +267,34 @@ app_ui = ui.page_sidebar(
         ui.input_action_button("apply", "Confirm & apply changes", class_="btn-danger"),
         width=340,
     ),
-    ui.div(
-        ui.input_dark_mode(id="color_mode"),
-        style="display:flex;justify-content:flex-end;margin-bottom:.25rem;",
+            ui.output_ui("status"),
+            ui.input_text(
+                "search",
+                None,
+                placeholder="Search names…",
+                width="100%",
+            ),
+            ui.output_data_frame("preview"),
+        ),
     ),
-    ui.output_ui("status"),
-    ui.input_text(
-        "search",
-        None,
-        placeholder="Search names…",
-        width="100%",
+    ui.nav_panel(
+        "Settings",
+        ui.h4("Appearance", class_="mt-2"),
+        ui.input_select(
+            "skin",
+            "Skin",
+            choices=SKIN_CHOICES,
+            selected=DEFAULT_SKIN,
+            width="320px",
+        ),
+        ui.help_text(
+            "Light and dark skins are grouped separately. Textured skins are "
+            "pure CSS — no image files."
+        ),
     ),
-    ui.output_data_frame("preview"),
     title="Regex Rename",
+    id="nav",
+    header=ui.tags.script(ui.HTML(_SKIN_JS)),
 )
 
 
@@ -135,12 +318,6 @@ def fmt_time(ts: float) -> str:
     except (OverflowError, OSError, ValueError):
         return "—"
 
-
-# Whole-row background/text colors by outcome. "will rename" rows go green,
-# any problem/error status goes red; "unchanged" rows are left unstyled so the
-# colored rows stand out.
-ROW_WILL_RENAME = {"background-color": "#d1e7dd", "color": "#0f5132"}  # green
-ROW_PROBLEM = {"background-color": "#f8d7da", "color": "#842029"}  # red
 
 
 # Quick-reference regex content shown in the cheat-sheet modal. Each section is
@@ -567,15 +744,19 @@ def server(input, output, session):
             records.append(rec)
         df = pd.DataFrame(records, columns=display_cols)
 
-        # Whole-row coloring by status: green when it will rename, red on any
-        # problem/error. Omitting "cols" applies the style across all columns.
+        # Whole-row coloring by status, using the current skin's palette: green
+        # when it will rename, red on any problem/error. Omitting "cols" applies
+        # the style across all columns.
+        skin = SKINS.get(input.skin(), SKINS[DEFAULT_SKIN])
+        good_style = {"background-color": skin["good_bg"], "color": skin["good_ink"]}
+        bad_style = {"background-color": skin["bad_bg"], "color": skin["bad_ink"]}
         styles = []
         if has_pattern:
             for i, r in enumerate(rows):
                 st = r["status"]
                 if st in ("", "unchanged"):
                     continue
-                row_style = ROW_WILL_RENAME if st == "will rename" else ROW_PROBLEM
+                row_style = good_style if st == "will rename" else bad_style
                 styles.append({"rows": [i], "style": dict(row_style)})
 
         return render.DataGrid(
@@ -589,6 +770,16 @@ def server(input, output, session):
     @reactive.event(input.cheatsheet)
     def _show_cheatsheet():
         ui.modal_show(cheatsheet_modal())
+
+    @reactive.effect
+    async def _apply_skin():
+        """Push the selected skin to the client: set the Bootstrap color mode
+        and swap the injected <style>. Runs on connect and on every change."""
+        skin = SKINS.get(input.skin(), SKINS[DEFAULT_SKIN])
+        await session.send_custom_message(
+            "apply-skin",
+            {"mode": skin["mode"], "css": build_skin_css(skin)},
+        )
 
     @reactive.effect
     @reactive.event(input.apply)
