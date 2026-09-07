@@ -28,7 +28,9 @@ checks before anything is written to disk.
 - **Search bar** to filter the grid by current or proposed name.
 - A built-in **regex cheat sheet** (button by the pattern field) with common
   tokens and rename-focused examples.
-- A **light/dark mode toggle** for comfortable viewing.
+- **Themeable skins** in a Settings tab — plain Classic Light/Dark plus
+  textured skins (Linen, Natural Canvas, Cyanotype, Slate Carbon, Graphite
+  Mesh, Gunmetal, Blueprint, Circuit Navy, Denim), all pure CSS.
 - Colored **status** per row (green = will rename, grey = unchanged, red =
   problem) so you can see at a glance what will happen.
 - Optional **case-insensitive** matching and **name-only** matching that keeps
